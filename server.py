@@ -252,10 +252,14 @@ def download_video():
     # Set appropriate headers
     headers = {
         'Content-Type': 'application/octet-stream',
-        'Content-Disposition': f'attachment; filename="video.mp4"',
+        'Content-Disposition': f'attachment; filename="CyberStream_Video.mp4"',
     }
     
     return Response(generate(), headers=headers)
+
+@app.route('/health')
+def health_check():
+    return "OK", 200
 
 if __name__ == '__main__':
     print("CyberStream Backend Server Running on http://localhost:8000")

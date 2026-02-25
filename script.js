@@ -108,8 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 savePathInput.value = fileHandle.name; // Browser security prevents showing full path
             } else {
                 // Fallback for browsers that don't support the API
-                alert('File System Access API not supported in this browser. Simulation mode active.');
-                savePathInput.value = 'C:\\Downloads\\cyberpunk_video.mp4';
+                alert('Your browser will save the file to your default Downloads folder automatically.');
+                savePathInput.value = 'Default Downloads Folder';
             }
         } catch (err) {
             console.error(err);
@@ -198,19 +198,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     downloadBtn.addEventListener('click', () => {
+        // If not using File System API, set a default value if empty
+        if (!('showSaveFilePicker' in window) && !savePathInput.value) {
+            savePathInput.value = 'Default Downloads Folder';
+        }
+
         if (!savePathInput.value) {
             // Flash red to indicate required field
             savePathInput.style.borderColor = "red";
             setTimeout(() => savePathInput.style.borderColor = "#333", 500);
             
             // If no path selected, we can prompt or just start default download
-            // For this user request "ask user where to save", we should probably enforce it or auto-prompt
             if ('showSaveFilePicker' in window && !fileHandle) {
                 browseBtn.click(); // Trigger the browse dialog
                 return;
-            } else if (!fileHandle) {
-                // Simulation fallback
-                savePathInput.value = 'C:\\Downloads\\cyberpunk_video.mp4';
             }
         }
         
@@ -223,6 +224,31 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadBtn.disabled = true;
         downloadBtn.querySelector('span').textContent = "INITIALIZING...";
         
+        // Check if we should use direct download (Mobile/Firefox) or Stream (Chrome Desktop)
+        if (!fileHandle) {
+            // DIRECT DOWNLOAD MODE
+            // This is better for mobile/safari/firefox as it handles large files natively
+            downloadBtn.querySelector('span').textContent = "STARTING DOWNLOAD...";
+            
+            // Create a hidden iframe or link to trigger download
+            const downloadUrl = `/api/download?url=${encodeURIComponent(url)}&quality=${quality}`;
+            
+            // Use a temporary link
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = ''; // Browser will infer from Content-Disposition
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            // We can't track progress easily with direct download, so we just reset UI
+            setTimeout(() => {
+                 finishDownload();
+            }, 2000);
+            return;
+        }
+
+        // STREAM DOWNLOAD MODE (For browsers with File System Access API)
         progressContainer.classList.remove('hidden');
         progressBar.style.width = '0%';
         progressText.textContent = '0%';
@@ -246,7 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // If we have a file handle, create a writable stream
             let writable = null;
-            let chunks = [];
             if (fileHandle) {
                 writable = await fileHandle.createWritable();
             }
@@ -254,11 +279,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Progress tracking
             let receivedLength = 0;
             // Content-Length might not be available for chunked encoding, but we can try
-            let contentLength = +response.headers.get('Content-Length');
+            let totalLength = +response.headers.get('Content-Length');
             
             // Fallback to metadata filesize if header is missing
-            if (!contentLength && currentVideoData && currentVideoData.filesize) {
-                contentLength = currentVideoData.filesize;
+            if (!totalLength && currentVideoData && currentVideoData.filesize) {
+                totalLength = currentVideoData.filesize;
             }
             
             downloadBtn.querySelector('span').textContent = "DOWNLOADING...";
@@ -277,8 +302,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (writable) {
                     await writable.write(value);
-                } else {
-                    chunks.push(value);
                 }
                 
                 receivedLength += value.length;
@@ -300,13 +323,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     
                     // Update progress bar
-                    if (contentLength) {
-                        const percent = Math.min((receivedLength / contentLength) * 100, 99);
+                    if (totalLength) {
+                        const percent = Math.min((receivedLength / totalLength) * 100, 99);
                         progressBar.style.width = `${percent}%`;
                         
                         // Format Size: 15.2 MB / 34.5 MB
                         const currentSize = (receivedLength / (1024 * 1024)).toFixed(1);
-                        const totalSize = (contentLength / (1024 * 1024)).toFixed(1);
+                        const totalSize = (totalLength / (1024 * 1024)).toFixed(1);
                         
                         progressText.textContent = `${Math.floor(percent)}% | ${currentSize} MB / ${totalSize} MB | ${speedText}`;
                     } else {
@@ -324,29 +347,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (writable) {
                 await writable.close();
-            } else {
-                // Fallback download if no file handle (e.g. user canceled or unsupported)
-                const blob = new Blob(chunks, { type: 'video/mp4' });
-                const blobUrl = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = blobUrl;
-                
-                // Try to get filename from Content-Disposition header
-                let filename = 'downloaded_video.mp4';
-                const disposition = response.headers.get('Content-Disposition');
-                if (disposition && disposition.includes('filename=')) {
-                    const matches = disposition.match(/filename="?([^"]+)"?/);
-                    if (matches && matches[1]) {
-                        filename = matches[1];
-                    }
-                }
-                
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(blobUrl);
-                chunks = []; // Free memory
             }
             
             progressBar.style.width = '100%';
