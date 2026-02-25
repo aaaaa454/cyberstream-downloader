@@ -23,11 +23,14 @@ if not FFMPEG_AVAILABLE:
 # Serve the frontend
 @app.route('/')
 def index():
-    return send_file('index.html')
+    return send_file(os.path.join(app.root_path, 'index.html'))
 
 @app.route('/<path:path>')
 def static_files(path):
-    return send_file(path)
+    file_path = os.path.join(app.root_path, path)
+    if os.path.exists(file_path):
+        return send_file(file_path)
+    return "File not found", 404
 
 @app.route('/api/info', methods=['POST'])
 def get_video_info():
