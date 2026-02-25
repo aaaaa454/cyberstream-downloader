@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressContainer = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
+    const analyzeBtn = document.getElementById('analyze-btn');
     
     let fileHandle = null;
     let currentVideoData = null; // Store fetched data
@@ -31,9 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.innerWidth < 768) {
                 urlInput.blur();
             }
-        } else if (value.length > 0) {
-            // Reset if invalid
-            previewCard.classList.add('hidden');
         }
     });
 
@@ -52,12 +50,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 100);
     });
     
+    // Allow manual trigger by pressing Enter
+    urlInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const value = urlInput.value;
+            if (isValidUrl(value)) {
+                analyzeLink(value);
+                urlInput.blur();
+            } else {
+                 alert('Please enter a valid YouTube, Facebook, or TikTok URL');
+            }
+        }
+    });
+
+    // Handle manual analyze button click
+    analyzeBtn.addEventListener('click', () => {
+        const value = urlInput.value;
+        if (isValidUrl(value)) {
+            analyzeLink(value);
+            urlInput.blur();
+        } else {
+             alert('Please enter a valid YouTube, Facebook, or TikTok URL');
+        }
+    });
+
     function isValidUrl(url) {
-        return url.includes('youtube.com') || 
-               url.includes('youtu.be') || 
-               url.includes('facebook.com') || 
-               url.includes('fb.watch') ||
-               url.includes('tiktok.com');
+        if (!url) return false;
+        // Make matching more robust (case insensitive)
+        const lowerUrl = url.toLowerCase();
+        return lowerUrl.includes('youtube.com') || 
+               lowerUrl.includes('youtu.be') || 
+               lowerUrl.includes('facebook.com') || 
+               lowerUrl.includes('fb.watch') ||
+               lowerUrl.includes('tiktok.com');
     }
     
     // Handle Save Location Browse

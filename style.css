@@ -157,32 +157,48 @@ header {
     position: relative;
     display: flex;
     align-items: center;
+    width: 100%;
+    max-width: 600px;
 }
 
 .input-icon {
     position: absolute;
-    left: 1.5rem;
-    color: var(--neon-pink);
-    font-size: 1.5rem;
+    left: 1rem;
+    color: var(--neon-cyan);
+    font-size: 1.2rem;
+    pointer-events: none;
     z-index: 2;
 }
 
-input[type="text"] {
+#urlInput {
     width: 100%;
-    padding: 1.5rem 1.5rem 1.5rem 4rem;
-    background: rgba(0, 0, 0, 0.7);
-    border: 2px solid #333;
+    padding: 1rem 3rem; /* Increased right padding for button */
+    padding-right: 4rem;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--neon-cyan);
     color: var(--text-main);
     font-family: var(--font-mono);
-    font-size: 1.2rem;
+    font-size: 1rem;
     outline: none;
-    transition: all 0.3s ease;
-    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    transition: all 0.3s;
 }
 
-input[type="text"]:focus {
-    border-color: var(--neon-cyan);
-    box-shadow: 0 0 15px var(--neon-cyan), inset 0 0 10px rgba(0, 243, 255, 0.2);
+.analyze-btn {
+    position: absolute;
+    right: 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--neon-cyan);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    transition: all 0.3s;
+    z-index: 2;
+}
+
+.analyze-btn:hover {
+    color: var(--neon-pink);
+    transform: scale(1.1);
 }
 
 #paste-indicator {
