@@ -51,14 +51,16 @@ def get_video_info():
                 'youtube': {
                     'player_client': ['android', 'web'],
                     'player_skip': ['webpage', 'configs', 'js'],
-                    # 'include_live_dash': True, # This can cause 'bool' is not iterable error in some versions
                 }
             },
             # Add user-agent and referer to avoid "Sign in to confirm you're not a bot"
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
-                'Referer': 'https://m.youtube.com/',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://www.youtube.com/',
+                'Accept-Language': 'en-US,en;q=0.9',
             },
+            'nocheckcertificate': True,
+            'geo_bypass': True,
         }
         
         try:
@@ -176,28 +178,48 @@ def download_video():
     # This avoids loading the whole file into memory
     # We use yt-dlp to output to stdout (-o -)
     
+    # Re-use the robust options for download
+    ydl_opts_dl = {
+        'format': format_str,
+        'quiet': True,
+        'no_warnings': True,
+        'nocheckcertificate': True,
+        'geo_bypass': True,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web'],
+                'player_skip': ['webpage', 'configs', 'js'],
+            }
+        },
+        'http_headers': {
+             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+             'Referer': 'https://www.youtube.com/',
+             'Accept-Language': 'en-US,en;q=0.9',
+        },
+    }
+    
+    # We can't easily use subprocess with these complex options unless we construct the cmd manually
+    # Or we can use yt_dlp python API with a custom File-like object, but that's complex for streaming flask response
+    # So we will try to construct a robust command line
+    
     cmd = [
         sys.executable, '-m', 'yt_dlp',
         url,
         '-f', format_str,
-        '-o', '-',  # Output to stdout
+        '-o', '-',
+        '--quiet',
+        '--no-warnings',
+        '--no-check-certificate',
+        '--geo-bypass',
+        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        '--referer', 'https://www.youtube.com/',
+        '--extractor-args', 'youtube:player_client=android,web;player_skip=webpage,configs,js'
     ]
-
-    # Add YouTube-specific args
-    if is_youtube:
-        cmd.extend([
-            '--extractor-args', 'youtube:player_client=android,web;player_skip=webpage,configs,js',
-            '--user-agent', 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
-            '--referer', 'https://m.youtube.com/',
-        ])
-    elif is_facebook:
-        cmd.extend([
-            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            '--referer', 'https://www.facebook.com/',
-        ])
     
-    # If audio only, we might want to convert, but that requires ffmpeg
-    # For now, we'll just download what's available
+    # If ffmpeg is missing and we requested a merged format, we should probably warn or fallback
+    # But our logic above already handles the format string selection based on FFMPEG_AVAILABLE
+    
+    logger.info(f"Executing command: {' '.join(cmd)}")
     
     def generate():
         process = subprocess.Popen(

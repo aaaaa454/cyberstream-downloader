@@ -27,6 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isValidUrl(value)) {
             showPasteIndicator();
             analyzeLink(value);
+            // On mobile, blur to hide keyboard and prevent layout shift
+            if (window.innerWidth < 768) {
+                urlInput.blur();
+            }
         } else if (value.length > 0) {
             // Reset if invalid
             previewCard.classList.add('hidden');
@@ -40,6 +44,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isValidUrl(value)) {
                 showPasteIndicator();
                 analyzeLink(value);
+                // On mobile, blur to hide keyboard
+                if (window.innerWidth < 768) {
+                    urlInput.blur();
+                }
             }
         }, 100);
     });
@@ -197,8 +205,18 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`/api/download?url=${encodeURIComponent(url)}&quality=${quality}`);
             
-            if (!response.ok) throw new Error('Download failed');
+            if (!response.ok) {
+                // Try to read error message
+                const errorText = await response.text();
+                throw new Error(errorText || 'Download failed');
+            }
             
+            // Check content length to verify it's not empty
+            const contentLength = +response.headers.get('Content-Length');
+            if (contentLength === 0) {
+                 throw new Error('Empty file received from server');
+            }
+
             const reader = response.body.getReader();
             
             // If we have a file handle, create a writable stream
